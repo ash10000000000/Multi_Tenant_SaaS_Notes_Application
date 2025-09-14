@@ -35,14 +35,23 @@ router.post('/:slug/upgrade', requireAdmin, async (req, res) => {
       ['pro', tenantId]
     );
 
+    // Get updated tenant info
+    const updatedTenantResult = await pool.query(
+      'SELECT * FROM tenants WHERE id = $1',
+      [tenantId]
+    );
+    const updatedTenant = updatedTenantResult.rows[0];
+
     res.json({
       message: 'Tenant upgraded to Pro plan successfully',
       tenant: {
-        id: tenant.id,
-        slug: tenant.slug,
-        name: tenant.name,
-        plan: 'pro'
-      }
+        id: updatedTenant.id,
+        slug: updatedTenant.slug,
+        name: updatedTenant.name,
+        plan: updatedTenant.plan
+      },
+      noteLimit: 'unlimited',
+      upgradeDate: new Date().toISOString()
     });
   } catch (error) {
     console.error('Upgrade tenant error:', error);
@@ -65,7 +74,21 @@ router.get('/:slug', async (req, res) => {
       return res.status(404).json({ error: 'Tenant not found or access denied' });
     }
 
-    res.json(result.rows[0]);
+    const tenant = result.rows[0];
+    
+    // Get current note count
+    const noteCountResult = await pool.query(
+      'SELECT COUNT(*) as count FROM notes WHERE tenant_id = $1',
+      [tenantId]
+    );
+    const noteCount = parseInt(noteCountResult.rows[0].count);
+
+    res.json({
+      ...tenant,
+      noteCount,
+      noteLimit: tenant.plan === 'free' ? 3 : 'unlimited',
+      canCreateNote: tenant.plan === 'pro' || noteCount < 3
+    });
   } catch (error) {
     console.error('Get tenant error:', error);
     res.status(500).json({ error: 'Database error' });

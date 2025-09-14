@@ -167,6 +167,36 @@
             font-size: 0.9rem;
         }
 
+        .plan-status {
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .plan-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .plan-free {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .plan-pro {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .note-usage {
+            font-size: 0.8rem;
+            color: #6b7280;
+        }
+
         .notes-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -492,7 +522,14 @@
                     <div class="user-info">
                         <div>
                             <h2>Notes App</h2>
-                            <p>Welcome, ${this.currentUser.email} (${this.currentUser.role}) - ${this.currentUser.tenant.name} (${this.currentUser.tenant.plan})</p>
+                            <p>Welcome, ${this.currentUser.email} (${this.currentUser.role}) - ${this.currentUser.tenant.name}</p>
+                            <div class="plan-status">
+                                <span class="plan-badge plan-${this.currentUser.tenant.plan}">${this.currentUser.tenant.plan.toUpperCase()} PLAN</span>
+                                ${this.currentUser.tenant.plan === 'free' ? 
+                                    `<span class="note-usage">${this.currentNoteCount || 0}/3 notes used</span>` : 
+                                    `<span class="note-usage">Unlimited notes</span>`
+                                }
+                            </div>
                         </div>
                         <button class="btn btn-danger" onclick="app.showLoginForm()">Logout</button>
                     </div>
@@ -778,6 +815,10 @@
             async upgradeTenant() {
                 const tenantSlug = this.currentUser.tenant.slug;
 
+                if (!confirm('Are you sure you want to upgrade to Pro plan? This will unlock unlimited notes for your organization.')) {
+                    return;
+                }
+
                 try {
                     const response = await fetch(`${this.apiBaseUrl}/tenants/${tenantSlug}/upgrade`, {
                         method: 'POST',
@@ -787,11 +828,13 @@
                     });
 
                     if (response.ok) {
+                        const data = await response.json();
                         this.currentUser.tenant.plan = 'pro';
+                        this.showError(`🎉 Successfully upgraded to Pro plan! You now have unlimited notes.`);
                         this.showNotesApp(); // Refresh the app to show updated plan
                     } else {
-                        const error = await response.text();
-                        this.showError(`Failed to upgrade tenant: ${error}`);
+                        const error = await response.json();
+                        this.showError(`Failed to upgrade tenant: ${error.error}`);
                     }
                 } catch (error) {
                     this.showError(`Error upgrading tenant: ${error.message}`);
