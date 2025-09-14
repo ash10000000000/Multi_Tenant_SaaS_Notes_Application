@@ -561,17 +561,7 @@
                                 </div>
                             ` : ''}
                             
-                            ${this.currentUser.tenant.plan === 'free' ? `
-                                <div class="upgrade-prompt">
-                                    <h3>Upgrade to Pro</h3>
-                                    <p>You've reached the free plan limit of 3 notes. Upgrade to Pro for unlimited notes!</p>
-                                    ${this.currentUser.role === 'admin' ? `
-                                        <button class="btn btn-warning" onclick="app.upgradeTenant()">Upgrade Now</button>
-                                    ` : `
-                                        <p style="color: #92400e; font-size: 0.9rem;">Contact your admin to upgrade the plan</p>
-                                    `}
-                                </div>
-                            ` : ''}
+                            <div id="upgrade-prompt-container"></div>
                         </div>
                         
                         <div class="notes-list">
@@ -631,8 +621,8 @@
                         const errorData = await response.json();
                         if (errorData.upgradeRequired) {
                             this.showError(`Note limit reached! ${errorData.error}`);
-                            // Refresh the app to show upgrade prompt
-                            this.showNotesApp();
+                            // Refresh notes to update the display and show upgrade prompt
+                            this.loadNotes();
                         } else {
                             this.showError(`Failed to create note: ${errorData.error || 'Unknown error'}`);
                         }
@@ -667,11 +657,32 @@
 
             updateNoteUsageDisplay() {
                 const noteUsageElement = document.getElementById('note-usage-display');
+                const upgradePromptContainer = document.getElementById('upgrade-prompt-container');
+                
                 if (noteUsageElement) {
                     if (this.currentUser.tenant.plan === 'free') {
                         noteUsageElement.textContent = `${this.currentNoteCount || 0}/3 notes used`;
                     } else {
                         noteUsageElement.textContent = 'Unlimited notes';
+                    }
+                }
+                
+                // Show upgrade prompt only when user has exactly 3 notes on free plan
+                if (upgradePromptContainer) {
+                    if (this.currentUser.tenant.plan === 'free' && this.currentNoteCount >= 3) {
+                        upgradePromptContainer.innerHTML = `
+                            <div class="upgrade-prompt">
+                                <h3>Upgrade to Pro</h3>
+                                <p>You've reached the free plan limit of 3 notes. Upgrade to Pro for unlimited notes!</p>
+                                ${this.currentUser.role === 'admin' ? `
+                                    <button class="btn btn-warning" onclick="app.upgradeTenant()">Upgrade Now</button>
+                                ` : `
+                                    <p style="color: #92400e; font-size: 0.9rem;">Contact your admin to upgrade the plan</p>
+                                `}
+                            </div>
+                        `;
+                    } else {
+                        upgradePromptContainer.innerHTML = '';
                     }
                 }
             }
@@ -842,7 +853,8 @@
                         const data = await response.json();
                         this.currentUser.tenant.plan = 'pro';
                         this.showError(`🎉 Successfully upgraded to Pro plan! You now have unlimited notes.`);
-                        this.showNotesApp(); // Refresh the app to show updated plan
+                        // Refresh the display to hide upgrade prompt and show new plan status
+                        this.updateNoteUsageDisplay();
                     } else {
                         const error = await response.json();
                         this.showError(`Failed to upgrade tenant: ${error.error}`);
