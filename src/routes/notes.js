@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../database/init');
+const { pool } = require('../database/init');
 const { authenticateToken, requireMember } = require('../middleware/auth');
 
 const router = express.Router();
@@ -9,7 +9,7 @@ router.use(authenticateToken);
 router.use(requireMember);
 
 // Create a note
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { title, content } = req.body;
   const { tenantId, tenantPlan } = req.user;
 
@@ -17,105 +17,103 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
 
-  // Check note limit for free plan
-  if (tenantPlan === 'free') {
-    db.get(
-      'SELECT COUNT(*) as count FROM notes WHERE tenant_id = ?',
-      [tenantId],
-      (err, result) => {
-        if (err) {
-          return res.status(500).json({ error: 'Database error' });
-        }
+  try {
+    // Check note limit for free plan
+    if (tenantPlan === 'free') {
+      const countResult = await pool.query(
+        'SELECT COUNT(*) as count FROM notes WHERE tenant_id = $1',
+        [tenantId]
+      );
 
-        if (result.count >= 3) {
-          return res.status(403).json({ 
-            error: 'Note limit reached for free plan. Upgrade to Pro for unlimited notes.',
-            upgradeRequired: true
-          });
-        }
-
-        // Create the note
-        createNote(req, res, title, content);
+      if (parseInt(countResult.rows[0].count) >= 3) {
+        return res.status(403).json({ 
+          error: 'Note limit reached for free plan. Upgrade to Pro for unlimited notes.',
+          upgradeRequired: true
+        });
       }
-    );
-  } else {
-    // Pro plan - unlimited notes
-    createNote(req, res, title, content);
+    }
+
+    // Create the note
+    await createNote(req, res, title, content);
+  } catch (error) {
+    console.error('Create note error:', error);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
-function createNote(req, res, title, content) {
+async function createNote(req, res, title, content) {
   const { tenantId, id: userId } = req.user;
 
-  db.run(
-    'INSERT INTO notes (title, content, tenant_id, user_id) VALUES (?, ?, ?, ?)',
-    [title, content || '', tenantId, userId],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ error: 'Failed to create note' });
-      }
+  try {
+    const result = await pool.query(
+      'INSERT INTO notes (title, content, tenant_id, user_id) VALUES ($1, $2, $3, $4) RETURNING id, created_at',
+      [title, content || '', tenantId, userId]
+    );
 
-      res.status(201).json({
-        id: this.lastID,
-        title,
-        content: content || '',
-        tenantId,
-        userId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-  );
+    const note = result.rows[0];
+    res.status(201).json({
+      id: note.id,
+      title,
+      content: content || '',
+      tenantId,
+      userId,
+      createdAt: note.created_at,
+      updatedAt: note.created_at
+    });
+  } catch (error) {
+    console.error('Create note error:', error);
+    res.status(500).json({ error: 'Failed to create note' });
+  }
 }
 
 // Get all notes for the current tenant
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   const { tenantId } = req.user;
 
-  db.all(
-    `SELECT n.*, u.email as author_email 
-     FROM notes n 
-     JOIN users u ON n.user_id = u.id 
-     WHERE n.tenant_id = ? 
-     ORDER BY n.created_at DESC`,
-    [tenantId],
-    (err, notes) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
+  try {
+    const result = await pool.query(
+      `SELECT n.*, u.email as author_email 
+       FROM notes n 
+       JOIN users u ON n.user_id = u.id 
+       WHERE n.tenant_id = $1 
+       ORDER BY n.created_at DESC`,
+      [tenantId]
+    );
 
-      res.json(notes);
-    }
-  );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get notes error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // Get a specific note
-router.get('/:id', (req, res) => {
+router.get('/:id', async (req, res) => {
   const { id } = req.params;
   const { tenantId } = req.user;
 
-  db.get(
-    `SELECT n.*, u.email as author_email 
-     FROM notes n 
-     JOIN users u ON n.user_id = u.id 
-     WHERE n.id = ? AND n.tenant_id = ?`,
-    [id, tenantId],
-    (err, note) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
+  try {
+    const result = await pool.query(
+      `SELECT n.*, u.email as author_email 
+       FROM notes n 
+       JOIN users u ON n.user_id = u.id 
+       WHERE n.id = $1 AND n.tenant_id = $2`,
+      [id, tenantId]
+    );
 
-      if (!note) {
-        return res.status(404).json({ error: 'Note not found' });
-      }
-
-      res.json(note);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Note not found' });
     }
-  );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get note error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // Update a note
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
   const { tenantId, id: userId } = req.user;
@@ -124,75 +122,67 @@ router.put('/:id', (req, res) => {
     return res.status(400).json({ error: 'Title is required' });
   }
 
-  // Check if note exists and belongs to tenant
-  db.get(
-    'SELECT * FROM notes WHERE id = ? AND tenant_id = ?',
-    [id, tenantId],
-    (err, note) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
+  try {
+    // Check if note exists and belongs to tenant
+    const noteResult = await pool.query(
+      'SELECT * FROM notes WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
 
-      if (!note) {
-        return res.status(404).json({ error: 'Note not found' });
-      }
-
-      // Update the note
-      db.run(
-        'UPDATE notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?',
-        [title, content || '', id, tenantId],
-        function(err) {
-          if (err) {
-            return res.status(500).json({ error: 'Failed to update note' });
-          }
-
-          res.json({
-            id: parseInt(id),
-            title,
-            content: content || '',
-            tenantId,
-            userId,
-            createdAt: note.created_at,
-            updatedAt: new Date().toISOString()
-          });
-        }
-      );
+    if (noteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Note not found' });
     }
-  );
+
+    const note = noteResult.rows[0];
+
+    // Update the note
+    const updateResult = await pool.query(
+      'UPDATE notes SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND tenant_id = $4 RETURNING updated_at',
+      [title, content || '', id, tenantId]
+    );
+
+    res.json({
+      id: parseInt(id),
+      title,
+      content: content || '',
+      tenantId,
+      userId,
+      createdAt: note.created_at,
+      updatedAt: updateResult.rows[0].updated_at
+    });
+  } catch (error) {
+    console.error('Update note error:', error);
+    res.status(500).json({ error: 'Failed to update note' });
+  }
 });
 
 // Delete a note
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   const { tenantId } = req.user;
 
-  // Check if note exists and belongs to tenant
-  db.get(
-    'SELECT * FROM notes WHERE id = ? AND tenant_id = ?',
-    [id, tenantId],
-    (err, note) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
+  try {
+    // Check if note exists and belongs to tenant
+    const noteResult = await pool.query(
+      'SELECT * FROM notes WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
 
-      if (!note) {
-        return res.status(404).json({ error: 'Note not found' });
-      }
-
-      // Delete the note
-      db.run(
-        'DELETE FROM notes WHERE id = ? AND tenant_id = ?',
-        [id, tenantId],
-        function(err) {
-          if (err) {
-            return res.status(500).json({ error: 'Failed to delete note' });
-          }
-
-          res.json({ message: 'Note deleted successfully' });
-        }
-      );
+    if (noteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Note not found' });
     }
-  );
+
+    // Delete the note
+    await pool.query(
+      'DELETE FROM notes WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
+
+    res.json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    console.error('Delete note error:', error);
+    res.status(500).json({ error: 'Failed to delete note' });
+  }
 });
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const express = require('express');
-const { db } = require('../database/init');
+const { pool } = require('../database/init');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -8,127 +8,116 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Upgrade tenant to Pro plan
-router.post('/:slug/upgrade', requireAdmin, (req, res) => {
+router.post('/:slug/upgrade', requireAdmin, async (req, res) => {
   const { slug } = req.params;
   const { tenantId } = req.user;
 
-  // Verify the tenant slug matches the user's tenant
-  db.get(
-    'SELECT * FROM tenants WHERE slug = ? AND id = ?',
-    [slug, tenantId],
-    (err, tenant) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
+  try {
+    // Verify the tenant slug matches the user's tenant
+    const tenantResult = await pool.query(
+      'SELECT * FROM tenants WHERE slug = $1 AND id = $2',
+      [slug, tenantId]
+    );
 
-      if (!tenant) {
-        return res.status(404).json({ error: 'Tenant not found or access denied' });
-      }
-
-      if (tenant.plan === 'pro') {
-        return res.status(400).json({ error: 'Tenant is already on Pro plan' });
-      }
-
-      // Upgrade to Pro plan
-      db.run(
-        'UPDATE tenants SET plan = ? WHERE id = ?',
-        ['pro', tenantId],
-        function(err) {
-          if (err) {
-            return res.status(500).json({ error: 'Failed to upgrade tenant' });
-          }
-
-          res.json({
-            message: 'Tenant upgraded to Pro plan successfully',
-            tenant: {
-              id: tenant.id,
-              slug: tenant.slug,
-              name: tenant.name,
-              plan: 'pro'
-            }
-          });
-        }
-      );
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant not found or access denied' });
     }
-  );
+
+    const tenant = tenantResult.rows[0];
+
+    if (tenant.plan === 'pro') {
+      return res.status(400).json({ error: 'Tenant is already on Pro plan' });
+    }
+
+    // Upgrade to Pro plan
+    await pool.query(
+      'UPDATE tenants SET plan = $1 WHERE id = $2',
+      ['pro', tenantId]
+    );
+
+    res.json({
+      message: 'Tenant upgraded to Pro plan successfully',
+      tenant: {
+        id: tenant.id,
+        slug: tenant.slug,
+        name: tenant.name,
+        plan: 'pro'
+      }
+    });
+  } catch (error) {
+    console.error('Upgrade tenant error:', error);
+    res.status(500).json({ error: 'Failed to upgrade tenant' });
+  }
 });
 
 // Get tenant information
-router.get('/:slug', (req, res) => {
+router.get('/:slug', async (req, res) => {
   const { slug } = req.params;
   const { tenantId } = req.user;
 
-  db.get(
-    'SELECT * FROM tenants WHERE slug = ? AND id = ?',
-    [slug, tenantId],
-    (err, tenant) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
+  try {
+    const result = await pool.query(
+      'SELECT * FROM tenants WHERE slug = $1 AND id = $2',
+      [slug, tenantId]
+    );
 
-      if (!tenant) {
-        return res.status(404).json({ error: 'Tenant not found or access denied' });
-      }
-
-      res.json(tenant);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant not found or access denied' });
     }
-  );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get tenant error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // Get tenant statistics (for admin)
-router.get('/:slug/stats', requireAdmin, (req, res) => {
+router.get('/:slug/stats', requireAdmin, async (req, res) => {
   const { slug } = req.params;
   const { tenantId } = req.user;
 
-  db.get(
-    'SELECT * FROM tenants WHERE slug = ? AND id = ?',
-    [slug, tenantId],
-    (err, tenant) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
+  try {
+    const tenantResult = await pool.query(
+      'SELECT * FROM tenants WHERE slug = $1 AND id = $2',
+      [slug, tenantId]
+    );
 
-      if (!tenant) {
-        return res.status(404).json({ error: 'Tenant not found or access denied' });
-      }
-
-      // Get note count
-      db.get(
-        'SELECT COUNT(*) as noteCount FROM notes WHERE tenant_id = ?',
-        [tenantId],
-        (err, noteStats) => {
-          if (err) {
-            return res.status(500).json({ error: 'Database error' });
-          }
-
-          // Get user count
-          db.get(
-            'SELECT COUNT(*) as userCount FROM users WHERE tenant_id = ?',
-            [tenantId],
-            (err, userStats) => {
-              if (err) {
-                return res.status(500).json({ error: 'Database error' });
-              }
-
-              res.json({
-                tenant: {
-                  id: tenant.id,
-                  slug: tenant.slug,
-                  name: tenant.name,
-                  plan: tenant.plan
-                },
-                stats: {
-                  noteCount: noteStats.noteCount,
-                  userCount: userStats.userCount,
-                  noteLimit: tenant.plan === 'free' ? 3 : 'unlimited'
-                }
-              });
-            }
-          );
-        }
-      );
+    if (tenantResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant not found or access denied' });
     }
-  );
+
+    const tenant = tenantResult.rows[0];
+
+    // Get note count
+    const noteStatsResult = await pool.query(
+      'SELECT COUNT(*) as noteCount FROM notes WHERE tenant_id = $1',
+      [tenantId]
+    );
+
+    // Get user count
+    const userStatsResult = await pool.query(
+      'SELECT COUNT(*) as userCount FROM users WHERE tenant_id = $1',
+      [tenantId]
+    );
+
+    res.json({
+      tenant: {
+        id: tenant.id,
+        slug: tenant.slug,
+        name: tenant.name,
+        plan: tenant.plan
+      },
+      stats: {
+        noteCount: parseInt(noteStatsResult.rows[0].notecount),
+        userCount: parseInt(userStatsResult.rows[0].usercount),
+        noteLimit: tenant.plan === 'free' ? 3 : 'unlimited'
+      }
+    });
+  } catch (error) {
+    console.error('Get tenant stats error:', error);
+    res.status(500).json({ error: 'Database error' });
+  }
 });
 
 module.exports = router;

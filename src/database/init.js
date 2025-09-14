@@ -1,113 +1,109 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-const dbPath = path.join(__dirname, 'notes.db');
-const db = new sqlite3.Database(dbPath);
+// Create PostgreSQL connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
 
-const initializeDatabase = () => {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      // Create tenants table
-      db.run(`
-        CREATE TABLE IF NOT EXISTS tenants (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          slug TEXT UNIQUE NOT NULL,
-          name TEXT NOT NULL,
-          plan TEXT DEFAULT 'free' CHECK(plan IN ('free', 'pro')),
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+// Test database connection
+pool.on('connect', () => {
+  console.log('Connected to PostgreSQL database');
+});
 
-      // Create users table
-      db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          email TEXT UNIQUE NOT NULL,
-          password_hash TEXT NOT NULL,
-          role TEXT DEFAULT 'member' CHECK(role IN ('admin', 'member')),
-          tenant_id INTEGER NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (tenant_id) REFERENCES tenants (id)
-        )
-      `);
+pool.on('error', (err) => {
+  console.error('PostgreSQL connection error:', err);
+});
 
-      // Create notes table
-      db.run(`
-        CREATE TABLE IF NOT EXISTS notes (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          title TEXT NOT NULL,
-          content TEXT,
-          tenant_id INTEGER NOT NULL,
-          user_id INTEGER NOT NULL,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (tenant_id) REFERENCES tenants (id),
-          FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-      `);
+const initializeDatabase = async () => {
+  try {
+    // Create tenants table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id SERIAL PRIMARY KEY,
+        slug VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        plan VARCHAR(50) DEFAULT 'free' CHECK(plan IN ('free', 'pro')),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-      // Create indexes for better performance
-      db.run(`CREATE INDEX IF NOT EXISTS idx_notes_tenant_id ON notes(tenant_id)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
+    // Create users table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(50) DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+        tenant_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE
+      )
+    `);
 
-      // Insert default tenants
-      db.run(`
-        INSERT OR IGNORE INTO tenants (slug, name, plan) VALUES 
-        ('acme', 'Acme Corporation', 'free'),
-        ('globex', 'Globex Corporation', 'free')
-      `, (err) => {
-        if (err) {
-          console.error('Error inserting tenants:', err);
-          reject(err);
-          return;
-        }
+    // Create notes table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        content TEXT,
+        tenant_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+      )
+    `);
 
-        // Get tenant IDs
-        db.all('SELECT id, slug FROM tenants', (err, tenants) => {
-          if (err) {
-            reject(err);
-            return;
-          }
+    // Create indexes for better performance
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_notes_tenant_id ON notes(tenant_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
 
-          const tenantMap = {};
-          tenants.forEach(tenant => {
-            tenantMap[tenant.slug] = tenant.id;
-          });
+    // Insert default tenants
+    await pool.query(`
+      INSERT INTO tenants (slug, name, plan) VALUES 
+      ('acme', 'Acme Corporation', 'free'),
+      ('globex', 'Globex Corporation', 'free')
+      ON CONFLICT (slug) DO NOTHING
+    `);
 
-          // Hash password for test accounts
-          const hashedPassword = bcrypt.hashSync('password', 10);
-
-          // Insert test users
-          const testUsers = [
-            { email: 'admin@acme.test', role: 'admin', tenant: 'acme' },
-            { email: 'user@acme.test', role: 'member', tenant: 'acme' },
-            { email: 'admin@globex.test', role: 'admin', tenant: 'globex' },
-            { email: 'user@globex.test', role: 'member', tenant: 'globex' }
-          ];
-
-          const insertUser = db.prepare(`
-            INSERT OR IGNORE INTO users (email, password_hash, role, tenant_id) 
-            VALUES (?, ?, ?, ?)
-          `);
-
-          testUsers.forEach(user => {
-            insertUser.run(user.email, hashedPassword, user.role, tenantMap[user.tenant]);
-          });
-
-          insertUser.finalize((err) => {
-            if (err) {
-              reject(err);
-              return;
-            }
-            console.log('Database initialized successfully');
-            resolve();
-          });
-        });
-      });
+    // Get tenant IDs
+    const tenantResult = await pool.query('SELECT id, slug FROM tenants');
+    const tenantMap = {};
+    tenantResult.rows.forEach(tenant => {
+      tenantMap[tenant.slug] = tenant.id;
     });
-  });
+
+    // Hash password for test accounts
+    const hashedPassword = bcrypt.hashSync('password', 10);
+
+    // Insert test users
+    const testUsers = [
+      { email: 'admin@acme.test', role: 'admin', tenant: 'acme' },
+      { email: 'user@acme.test', role: 'member', tenant: 'acme' },
+      { email: 'admin@globex.test', role: 'admin', tenant: 'globex' },
+      { email: 'user@globex.test', role: 'member', tenant: 'globex' }
+    ];
+
+    for (const user of testUsers) {
+      await pool.query(`
+        INSERT INTO users (email, password_hash, role, tenant_id) 
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (email) DO NOTHING
+      `, [user.email, hashedPassword, user.role, tenantMap[user.tenant]]);
+    }
+
+    console.log('PostgreSQL database initialized successfully');
+  } catch (error) {
+    console.error('Database initialization error:', error);
+    throw error;
+  }
 };
 
-module.exports = { db, initializeDatabase };
+module.exports = { pool, initializeDatabase };

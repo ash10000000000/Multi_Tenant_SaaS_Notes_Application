@@ -7,8 +7,6 @@ import kotlinx.html.js.onSubmitFunction
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import org.w3c.fetch.RequestInit
-import org.w3c.fetch.Response
 import kotlin.js.Promise
 
 @Serializable
@@ -172,14 +170,15 @@ class NotesApp {
 
         GlobalScope.launch {
             try {
-                val response = fetch("$apiBaseUrl/auth/login", RequestInit(
-                    method = "POST",
-                    headers = json("Content-Type" to "application/json"),
-                    body = Json.encodeToString(LoginRequest.serializer(), LoginRequest(email, password))
-                ))
+                val response = fetch("$apiBaseUrl/auth/login", object {
+                    val method = "POST"
+                    val headers = js("{}")
+                    val body = Json.encodeToString(LoginRequest.serializer(), LoginRequest(email, password))
+                }.asDynamic())
 
                 if (response.ok) {
-                    val loginResponse = Json.decodeFromString<LoginResponse>(response.text().await())
+                    val responseText = response.text().await()
+                    val loginResponse = Json.decodeFromString<LoginResponse>(responseText)
                     currentUser = loginResponse.user
                     authToken = loginResponse.token
                     showNotesApp()
@@ -337,11 +336,11 @@ class NotesApp {
 
         GlobalScope.launch {
             try {
-                val response = fetch("$apiBaseUrl/notes", RequestInit(
-                    method = "POST",
-                    headers = json("Content-Type" to "application/json", "Authorization" to "Bearer $authToken"),
-                    body = Json.encodeToString(CreateNoteRequest.serializer(), CreateNoteRequest(title, content))
-                ))
+                val response = fetch("$apiBaseUrl/notes", object {
+                    val method = "POST"
+                    val headers = js("{}")
+                    val body = Json.encodeToString(CreateNoteRequest.serializer(), CreateNoteRequest(title, content))
+                }.asDynamic())
 
                 if (response.ok) {
                     (document.getElementById("note-title") as? org.w3c.dom.HTMLInputElement)?.value = ""
@@ -360,13 +359,14 @@ class NotesApp {
     private fun loadNotes() {
         GlobalScope.launch {
             try {
-                val response = fetch("$apiBaseUrl/notes", RequestInit(
-                    method = "GET",
-                    headers = json("Authorization" to "Bearer $authToken")
-                ))
+                val response = fetch("$apiBaseUrl/notes", object {
+                    val method = "GET"
+                    val headers = js("{}")
+                }.asDynamic())
 
                 if (response.ok) {
-                    val notes = Json.decodeFromString<List<Note>>(response.text().await())
+                    val responseText = response.text().await()
+                    val notes = Json.decodeFromString<List<Note>>(responseText)
                     displayNotes(notes)
                 } else {
                     val error = response.text().await()
@@ -433,10 +433,10 @@ class NotesApp {
 
         GlobalScope.launch {
             try {
-                val response = fetch("$apiBaseUrl/notes/$noteId", RequestInit(
-                    method = "DELETE",
-                    headers = json("Authorization" to "Bearer $authToken")
-                ))
+                val response = fetch("$apiBaseUrl/notes/$noteId", object {
+                    val method = "DELETE"
+                    val headers = js("{}")
+                }.asDynamic())
 
                 if (response.ok) {
                     loadNotes()
@@ -455,10 +455,10 @@ class NotesApp {
 
         GlobalScope.launch {
             try {
-                val response = fetch("$apiBaseUrl/tenants/$tenantSlug/upgrade", RequestInit(
-                    method = "POST",
-                    headers = json("Authorization" to "Bearer $authToken")
-                ))
+                val response = fetch("$apiBaseUrl/tenants/$tenantSlug/upgrade", object {
+                    val method = "POST"
+                    val headers = js("{}")
+                }.asDynamic())
 
                 if (response.ok) {
                     currentUser = currentUser?.copy(tenant = currentUser?.tenant?.copy(plan = "pro"))
