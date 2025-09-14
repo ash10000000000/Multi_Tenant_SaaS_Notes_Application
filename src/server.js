@@ -60,14 +60,17 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Initialize database and start server
+// Initialize database in background (non-blocking)
 initializeDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-  });
+  console.log('Database initialized successfully');
 }).catch(err => {
   console.error('Failed to initialize database:', err);
-  process.exit(1);
+  // Don't exit - let the server run and handle database errors gracefully
+});
+
+// Start server immediately
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 module.exports = app;
