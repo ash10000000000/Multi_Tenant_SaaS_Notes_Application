@@ -72,9 +72,10 @@ router.get('/', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT n.*, u.email as author_email 
+      `SELECT n.*, u.email as author_email, updater.email as updated_by_email
        FROM notes n 
        JOIN users u ON n.user_id = u.id 
+       LEFT JOIN users updater ON n.updated_by = updater.id
        WHERE n.tenant_id = $1 
        ORDER BY n.created_at DESC`,
       [tenantId]
@@ -94,9 +95,10 @@ router.get('/:id', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT n.*, u.email as author_email 
+      `SELECT n.*, u.email as author_email, updater.email as updated_by_email
        FROM notes n 
        JOIN users u ON n.user_id = u.id 
+       LEFT JOIN users updater ON n.updated_by = updater.id
        WHERE n.id = $1 AND n.tenant_id = $2`,
       [id, tenantId]
     );
@@ -137,9 +139,16 @@ router.put('/:id', async (req, res) => {
 
     // Update the note
     const updateResult = await pool.query(
-      'UPDATE notes SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND tenant_id = $4 RETURNING updated_at',
-      [title, content || '', id, tenantId]
+      'UPDATE notes SET title = $1, content = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $5 WHERE id = $3 AND tenant_id = $4 RETURNING updated_at',
+      [title, content || '', id, tenantId, userId]
     );
+
+    // Get updater information
+    const updaterResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1',
+      [userId]
+    );
+    const updaterEmail = updaterResult.rows[0]?.email || 'Unknown';
 
     res.json({
       id: parseInt(id),
@@ -148,7 +157,8 @@ router.put('/:id', async (req, res) => {
       tenantId,
       userId,
       createdAt: note.created_at,
-      updatedAt: updateResult.rows[0].updated_at
+      updatedAt: updateResult.rows[0].updated_at,
+      updatedBy: updaterEmail
     });
   } catch (error) {
     console.error('Update note error:', error);

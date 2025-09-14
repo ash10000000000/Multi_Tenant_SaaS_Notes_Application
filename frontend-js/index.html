@@ -267,9 +267,13 @@
             color: #a0aec0;
         }
 
+        .note-actions {
+            display: flex;
+            gap: 8px;
+        }
+
         .note-meta button {
             padding: 4px 8px;
-            background: #ef4444;
             color: white;
             border: none;
             border-radius: 4px;
@@ -279,8 +283,53 @@
             transition: all 0.2s ease;
         }
 
-        .note-meta button:hover {
+        .btn-edit {
+            background: #3b82f6;
+        }
+
+        .btn-edit:hover {
+            background: #2563eb;
+        }
+
+        .btn-delete {
+            background: #ef4444;
+        }
+
+        .btn-delete:hover {
             background: #dc2626;
+        }
+
+        .edit-form {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .edit-input, .edit-textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .edit-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .edit-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .edit-actions .btn {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 14px;
         }
 
         .error-message {
@@ -594,16 +643,81 @@
                     notesList.innerHTML = '<div class="empty-state">No notes yet. Create your first note!</div>';
                 } else {
                     notesList.innerHTML = notes.map(note => `
-                        <div class="note-item">
+                        <div class="note-item" id="note-${note.id}">
                             <h3>${note.title}</h3>
                             <p>${note.content}</p>
                             <div class="note-meta">
-                                <span>By ${note.author_email || note.authorEmail || 'Unknown'} • ${new Date(note.created_at || note.createdAt).toLocaleDateString()}</span>
-                                <button onclick="app.deleteNote(${note.id})">Delete</button>
+                                <span>By ${note.author_email || note.authorEmail || 'Unknown'} • ${new Date(note.created_at || note.createdAt).toLocaleDateString()}
+                                ${note.updated_by_email ? ` • Updated by ${note.updated_by_email}` : ''}
+                                </span>
+                                <div class="note-actions">
+                                    <button onclick="app.editNote(${note.id})" class="btn-edit">Edit</button>
+                                    <button onclick="app.deleteNote(${note.id})" class="btn-delete">Delete</button>
+                                </div>
                             </div>
                         </div>
                     `).join('');
                 }
+            }
+
+            editNote(noteId) {
+                const noteElement = document.getElementById(`note-${noteId}`);
+                const titleElement = noteElement.querySelector('h3');
+                const contentElement = noteElement.querySelector('p');
+                const actionsElement = noteElement.querySelector('.note-actions');
+                
+                const currentTitle = titleElement.textContent;
+                const currentContent = contentElement.textContent;
+                
+                // Replace content with edit form
+                noteElement.innerHTML = `
+                    <div class="edit-form">
+                        <div class="form-group">
+                            <input type="text" id="edit-title-${noteId}" value="${currentTitle}" class="edit-input">
+                        </div>
+                        <div class="form-group">
+                            <textarea id="edit-content-${noteId}" class="edit-textarea">${currentContent}</textarea>
+                        </div>
+                        <div class="edit-actions">
+                            <button onclick="app.saveNote(${noteId})" class="btn btn-success">Save</button>
+                            <button onclick="app.cancelEdit(${noteId})" class="btn btn-danger">Cancel</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            async saveNote(noteId) {
+                const title = document.getElementById(`edit-title-${noteId}`).value;
+                const content = document.getElementById(`edit-content-${noteId}`).value;
+
+                if (!title.trim()) {
+                    this.showError('Title is required');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/notes/${noteId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${this.authToken}`
+                        },
+                        body: JSON.stringify({ title, content })
+                    });
+
+                    if (response.ok) {
+                        this.loadNotes(); // Reload to show updated note
+                    } else {
+                        const error = await response.text();
+                        this.showError(`Failed to update note: ${error}`);
+                    }
+                } catch (error) {
+                    this.showError(`Error updating note: ${error.message}`);
+                }
+            }
+
+            cancelEdit(noteId) {
+                this.loadNotes(); // Reload to show original note
             }
 
             async deleteNote(noteId) {

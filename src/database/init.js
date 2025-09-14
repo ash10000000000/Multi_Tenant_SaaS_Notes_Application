@@ -53,10 +53,12 @@ const initializeDatabase = async () => {
         content TEXT,
         tenant_id INTEGER NOT NULL,
         user_id INTEGER NOT NULL,
+        updated_by INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE,
-        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+        FOREIGN KEY (updated_by) REFERENCES users (id) ON DELETE SET NULL
       )
     `);
 
