@@ -391,6 +391,19 @@
                                 <button type="submit" class="btn btn-success">Create Note</button>
                             </form>
                             
+                            ${this.currentUser.role === 'admin' ? `
+                                <div class="upgrade-prompt">
+                                    <h3>Admin Actions</h3>
+                                    <p>Invite new users to your organization</p>
+                                    <form id="inviteForm" style="margin-top: 10px;">
+                                        <div class="form-group">
+                                            <input type="email" id="invite-email" placeholder="Enter email address" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-warning">Invite User</button>
+                                    </form>
+                                </div>
+                            ` : ''}
+                            
                             ${this.currentUser.role === 'admin' && this.currentUser.tenant.plan === 'free' ? `
                                 <div class="upgrade-prompt">
                                     <h3>Upgrade to Pro</h3>
@@ -415,6 +428,15 @@
                     e.preventDefault();
                     this.createNote();
                 });
+
+                // Add invite form event listener for admins
+                const inviteForm = document.getElementById('inviteForm');
+                if (inviteForm) {
+                    inviteForm.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.inviteUser();
+                    });
+                }
 
                 this.loadNotes();
             }
@@ -512,6 +534,37 @@
                     }
                 } catch (error) {
                     this.showError(`Error deleting note: ${error.message}`);
+                }
+            }
+
+            async inviteUser() {
+                const email = document.getElementById('invite-email').value;
+
+                if (!email) {
+                    this.showError('Please enter an email address');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/auth/invite`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${this.authToken}`
+                        },
+                        body: JSON.stringify({ email })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById('invite-email').value = '';
+                        this.showError(`User invited successfully! Temporary password: ${data.tempPassword}`);
+                    } else {
+                        const error = await response.text();
+                        this.showError(`Failed to invite user: ${error}`);
+                    }
+                } catch (error) {
+                    this.showError(`Error inviting user: ${error.message}`);
                 }
             }
 
