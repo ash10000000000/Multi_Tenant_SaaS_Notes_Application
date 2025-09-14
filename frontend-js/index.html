@@ -525,10 +525,7 @@
                             <p>Welcome, ${this.currentUser.email} (${this.currentUser.role}) - ${this.currentUser.tenant.name}</p>
                             <div class="plan-status">
                                 <span class="plan-badge plan-${this.currentUser.tenant.plan}">${this.currentUser.tenant.plan.toUpperCase()} PLAN</span>
-                                ${this.currentUser.tenant.plan === 'free' ? 
-                                    `<span class="note-usage">${this.currentNoteCount || 0}/3 notes used</span>` : 
-                                    `<span class="note-usage">Unlimited notes</span>`
-                                }
+                                <span class="note-usage" id="note-usage-display">Loading...</span>
                             </div>
                         </div>
                         <button class="btn btn-danger" onclick="app.showLoginForm()">Logout</button>
@@ -629,6 +626,7 @@
                         document.getElementById('note-title').value = '';
                         document.getElementById('note-content').value = '';
                         this.loadNotes();
+                        this.updateNoteUsageDisplay();
                     } else {
                         const errorData = await response.json();
                         if (errorData.upgradeRequired) {
@@ -657,12 +655,24 @@
                         const notes = await response.json();
                         this.displayNotes(notes);
                         this.currentNoteCount = notes.length;
+                        this.updateNoteUsageDisplay();
                     } else {
                         const error = await response.text();
                         this.showError(`Failed to load notes: ${error}`);
                     }
                 } catch (error) {
                     this.showError(`Error loading notes: ${error.message}`);
+                }
+            }
+
+            updateNoteUsageDisplay() {
+                const noteUsageElement = document.getElementById('note-usage-display');
+                if (noteUsageElement) {
+                    if (this.currentUser.tenant.plan === 'free') {
+                        noteUsageElement.textContent = `${this.currentNoteCount || 0}/3 notes used`;
+                    } else {
+                        noteUsageElement.textContent = 'Unlimited notes';
+                    }
                 }
             }
 
@@ -772,6 +782,7 @@
 
                     if (response.ok) {
                         this.loadNotes();
+                        this.updateNoteUsageDisplay();
                     } else {
                         const error = await response.text();
                         this.showError(`Failed to delete note: ${error}`);

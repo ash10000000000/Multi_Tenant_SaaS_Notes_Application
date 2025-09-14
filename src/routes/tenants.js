@@ -82,6 +82,9 @@ router.get('/:slug', async (req, res) => {
       [tenantId]
     );
     const noteCount = parseInt(noteCountResult.rows[0].count);
+    
+    // Debug logging
+    console.log(`GET /tenants/${slug} - Tenant ID: ${tenantId}, Note count: ${noteCount}`);
 
     res.json({
       ...tenant,

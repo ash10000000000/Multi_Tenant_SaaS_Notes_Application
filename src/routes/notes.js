@@ -70,6 +70,9 @@ async function createNote(req, res, title, content) {
 router.get('/', async (req, res) => {
   const { tenantId } = req.user;
 
+  // Debug logging
+  console.log(`GET /notes - User tenant ID: ${tenantId}, User: ${req.user.email}`);
+
   try {
     // Try with updated_by column first, fallback to basic query if column doesn't exist
     let result;
@@ -96,6 +99,9 @@ router.get('/', async (req, res) => {
       );
     }
 
+    // Debug logging
+    console.log(`GET /notes - Found ${result.rows.length} notes for tenant ${tenantId}`);
+    
     res.json(result.rows);
   } catch (error) {
     console.error('Get notes error:', error);
