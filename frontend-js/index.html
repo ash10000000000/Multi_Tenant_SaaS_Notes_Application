@@ -13,32 +13,38 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-            background-color: #f8f9fa;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             line-height: 1.6;
         }
 
         .container {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
 
         .header h1 {
-            color: #333;
+            color: white;
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
             margin-bottom: 10px;
         }
 
         .card {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .login-form {
@@ -47,75 +53,90 @@
         }
 
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
         }
 
-        .form-group input {
+        .form-group input, .form-group textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
             font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
         .btn {
             width: 100%;
-            padding: 12px;
-            background: #007bff;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 16px;
-            transition: background-color 0.3s;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
         }
 
         .btn:hover {
-            background: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
 
         .btn-success {
-            background: #28a745;
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.3);
         }
 
         .btn-success:hover {
-            background: #1e7e34;
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.4);
         }
 
         .btn-danger {
-            background: #dc3545;
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+            box-shadow: 0 4px 15px rgba(245, 101, 101, 0.3);
         }
 
         .btn-danger:hover {
-            background: #c82333;
+            box-shadow: 0 8px 25px rgba(245, 101, 101, 0.4);
         }
 
         .btn-warning {
-            background: #ffc107;
-            color: #212529;
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+            box-shadow: 0 4px 15px rgba(237, 137, 54, 0.3);
         }
 
         .btn-warning:hover {
-            background: #e0a800;
+            box-shadow: 0 8px 25px rgba(237, 137, 54, 0.4);
         }
 
         .test-accounts {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 4px;
+            background: rgba(102, 126, 234, 0.1);
+            padding: 20px;
+            border-radius: 12px;
             margin-top: 20px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
         }
 
         .test-accounts h3 {
-            margin-bottom: 10px;
-            color: #333;
+            margin-bottom: 15px;
+            color: #4a5568;
+            font-size: 1.1rem;
         }
 
         .test-accounts ul {
@@ -124,136 +145,185 @@
         }
 
         .test-accounts li {
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            color: #2d3748;
         }
 
         .user-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 8px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
             margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
 
         .user-info h2 {
             margin: 0;
-            color: #333;
+            color: #2d3748;
+            font-size: 1.5rem;
         }
 
         .user-info p {
-            margin: 5px 0 0 0;
-            color: #666;
+            margin: 8px 0 0 0;
+            color: #718096;
+            font-size: 0.9rem;
         }
 
         .notes-container {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 30px;
         }
 
         .create-note {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
 
         .create-note h2 {
-            margin-bottom: 15px;
-            color: #333;
+            margin-bottom: 20px;
+            color: #2d3748;
+            font-size: 1.3rem;
         }
 
         .create-note textarea {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
             resize: vertical;
-            min-height: 100px;
+            min-height: 120px;
+            font-family: inherit;
         }
 
         .upgrade-prompt {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            padding: 15px;
-            border-radius: 4px;
+            background: linear-gradient(135deg, #fef5e7 0%, #fed7aa 100%);
+            border: 2px solid #f6ad55;
+            padding: 20px;
+            border-radius: 12px;
             margin-top: 20px;
+            text-align: center;
         }
 
         .upgrade-prompt h3 {
             margin-bottom: 10px;
-            color: #856404;
+            color: #c05621;
+            font-size: 1.2rem;
         }
 
         .upgrade-prompt p {
-            margin-bottom: 10px;
-            color: #856404;
+            margin-bottom: 15px;
+            color: #9c4221;
         }
 
         .notes-list {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            max-height: 500px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 16px;
+            max-height: 600px;
             overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
 
         .notes-list h2 {
-            margin-bottom: 15px;
-            color: #333;
+            margin-bottom: 20px;
+            color: #2d3748;
+            font-size: 1.3rem;
         }
 
         .note-item {
             background: white;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .note-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
 
         .note-item h3 {
             margin: 0 0 10px 0;
-            color: #333;
+            color: #2d3748;
+            font-size: 1.1rem;
         }
 
         .note-item p {
-            margin: 0 0 10px 0;
-            color: #666;
+            margin: 0 0 15px 0;
+            color: #718096;
             white-space: pre-wrap;
+            line-height: 1.5;
         }
 
         .note-meta {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12px;
-            color: #999;
+            font-size: 0.85rem;
+            color: #a0aec0;
         }
 
         .note-meta button {
-            padding: 4px 8px;
-            background: #dc3545;
+            padding: 6px 12px;
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
             color: white;
             border: none;
-            border-radius: 3px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .note-meta button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(245, 101, 101, 0.3);
         }
 
         .error-message {
-            background: #f8d7da;
-            color: #721c24;
+            background: linear-gradient(135deg, #fed7d7 0%, #feb2b2 100%);
+            color: #c53030;
             padding: 15px;
-            border-radius: 4px;
+            border-radius: 12px;
             margin-bottom: 20px;
             display: none;
+            border: 1px solid #f56565;
+            font-weight: 500;
         }
 
         .empty-state {
             text-align: center;
-            color: #666;
+            color: #a0aec0;
+            padding: 40px 20px;
+            font-style: italic;
+        }
+
+        .admin-actions {
+            background: linear-gradient(135deg, #e6fffa 0%, #b2f5ea 100%);
+            border: 2px solid #4fd1c7;
             padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+
+        .admin-actions h3 {
+            margin-bottom: 15px;
+            color: #234e52;
+            font-size: 1.1rem;
+        }
+
+        .admin-actions p {
+            margin-bottom: 15px;
+            color: #2c7a7b;
         }
 
         @media (max-width: 768px) {
@@ -264,6 +334,15 @@
             .user-info {
                 flex-direction: column;
                 align-items: flex-start;
+                gap: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                padding: 25px;
             }
         }
     </style>
@@ -280,6 +359,7 @@
             constructor() {
                 this.currentUser = null;
                 this.authToken = null;
+                this.currentNoteCount = 0;
                 this.apiBaseUrl = 'https://multi-tenant-saa-s-notes-applicatii.vercel.app'; // Backend URL
                 this.init();
             }
@@ -392,10 +472,10 @@
                             </form>
                             
                             ${this.currentUser.role === 'admin' ? `
-                                <div class="upgrade-prompt">
-                                    <h3>Admin Actions</h3>
+                                <div class="admin-actions">
+                                    <h3>👥 Admin Actions</h3>
                                     <p>Invite new users to your organization</p>
-                                    <form id="inviteForm" style="margin-top: 10px;">
+                                    <form id="inviteForm" style="margin-top: 15px;">
                                         <div class="form-group">
                                             <input type="email" id="invite-email" placeholder="Enter email address" required>
                                         </div>
@@ -404,11 +484,15 @@
                                 </div>
                             ` : ''}
                             
-                            ${this.currentUser.role === 'admin' && this.currentUser.tenant.plan === 'free' ? `
+                            ${this.currentUser.tenant.plan === 'free' ? `
                                 <div class="upgrade-prompt">
-                                    <h3>Upgrade to Pro</h3>
-                                    <p>Unlock unlimited notes for your organization</p>
-                                    <button class="btn btn-warning" onclick="app.upgradeTenant()">Upgrade Now</button>
+                                    <h3>🚀 Upgrade to Pro</h3>
+                                    <p>You've reached the free plan limit of 3 notes. Upgrade to Pro for unlimited notes!</p>
+                                    ${this.currentUser.role === 'admin' ? `
+                                        <button class="btn btn-warning" onclick="app.upgradeTenant()">Upgrade Now</button>
+                                    ` : `
+                                        <p style="color: #9c4221; font-size: 0.9rem;">Contact your admin to upgrade the plan</p>
+                                    `}
                                 </div>
                             ` : ''}
                         </div>
@@ -439,6 +523,7 @@
                 }
 
                 this.loadNotes();
+                this.checkNoteLimit();
             }
 
             async createNote() {
@@ -465,8 +550,14 @@
                         document.getElementById('note-content').value = '';
                         this.loadNotes();
                     } else {
-                        const error = await response.text();
-                        this.showError(`Failed to create note: ${error}`);
+                        const errorData = await response.json();
+                        if (errorData.upgradeRequired) {
+                            this.showError(`Note limit reached! ${errorData.error}`);
+                            // Refresh the app to show upgrade prompt
+                            this.showNotesApp();
+                        } else {
+                            this.showError(`Failed to create note: ${errorData.error || 'Unknown error'}`);
+                        }
                     }
                 } catch (error) {
                     this.showError(`Error creating note: ${error.message}`);
@@ -485,12 +576,20 @@
                     if (response.ok) {
                         const notes = await response.json();
                         this.displayNotes(notes);
+                        this.currentNoteCount = notes.length;
                     } else {
                         const error = await response.text();
                         this.showError(`Failed to load notes: ${error}`);
                     }
                 } catch (error) {
                     this.showError(`Error loading notes: ${error.message}`);
+                }
+            }
+
+            async checkNoteLimit() {
+                if (this.currentUser.tenant.plan === 'free' && this.currentNoteCount >= 3) {
+                    // The upgrade prompt will be shown in the HTML template
+                    // This function can be used for additional logic if needed
                 }
             }
 
