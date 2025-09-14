@@ -8,6 +8,7 @@ const authRoutes = require('./routes/auth');
 const notesRoutes = require('./routes/notes');
 const tenantsRoutes = require('./routes/tenants');
 const { initializeDatabase } = require('./database/init');
+const { migrateDatabase } = require('./database/migrate');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -142,9 +143,17 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Initialize database in background (non-blocking)
-initializeDatabase().then(() => {
+// Initialize database and run migrations in background (non-blocking)
+initializeDatabase().then(async () => {
   console.log('Database initialized successfully');
+  
+  // Run migrations
+  try {
+    await migrateDatabase();
+  } catch (err) {
+    console.error('Migration failed:', err);
+    // Continue running - migration errors shouldn't crash the server
+  }
 }).catch(err => {
   console.error('Failed to initialize database:', err);
   // Don't exit - let the server run and handle database errors gracefully
