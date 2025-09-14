@@ -45,10 +45,12 @@ This application uses **Shared Schema with Tenant ID** approach:
 - ✅ Token-based session management
 
 ### Subscription Management
-- ✅ Free Plan: Limited to 3 notes per tenant
-- ✅ Pro Plan: Unlimited notes
-- ✅ Admin-only upgrade endpoint
-- ✅ Real-time plan enforcement
+- ✅ **Free Plan**: Limited to 3 notes per tenant (enforced at API level)
+- ✅ **Pro Plan**: Unlimited notes (no restrictions)
+- ✅ **Admin-only upgrade endpoint**: `POST /tenants/:slug/upgrade` with JWT authentication
+- ✅ **Real-time plan enforcement**: Immediate effect after upgrade
+- ✅ **Security layers**: JWT authentication + Admin role validation + Tenant ownership
+- ✅ **Frontend integration**: Dynamic UI based on user role and plan status
 
 ### Notes Management
 - ✅ Full CRUD operations for notes (Create, Read, Update, Delete)
@@ -93,9 +95,9 @@ All test accounts use password: `password`
 - `DELETE /notes/:id` - Delete a note (tenant isolated)
 
 ### Tenants (Admin Only)
-- `POST /tenants/:slug/upgrade` - Upgrade tenant to Pro plan
-- `GET /tenants/:slug` - Get tenant info with plan status
-- `GET /tenants/:slug/stats` - Get detailed tenant statistics
+- `POST /tenants/:slug/upgrade` - Upgrade tenant to Pro plan (Admin only, JWT required)
+- `GET /tenants/:slug` - Get tenant info with plan status and note counts
+- `GET /tenants/:slug/stats` - Get detailed tenant statistics (Admin only)
 
 ### System
 - `GET /health` - Health check endpoint
@@ -184,6 +186,100 @@ The application will automatically:
 - **Password Hashing**: bcrypt with salt rounds
 - **SQL Injection Protection**: Parameterized queries with PostgreSQL
 - **Tenant Isolation**: Strict data segregation
+- **Role-Based Access Control**: Admin/Member permissions enforced
+- **Admin-Only Endpoints**: Multiple security layers for sensitive operations
+
+## 💳 Free/Pro Plan Implementation
+
+### **Plan Restrictions**
+
+#### **Free Plan (Default)**
+- **Note Limit**: Maximum 3 notes per tenant
+- **Enforcement**: API-level validation before note creation
+- **Error Response**: `403 Forbidden` with `upgradeRequired: true` flag
+- **Frontend**: Shows upgrade prompt when limit reached
+
+#### **Pro Plan (Upgraded)**
+- **Note Limit**: Unlimited notes
+- **Enforcement**: No restrictions applied
+- **Access**: All CRUD operations available
+- **Frontend**: Shows "Unlimited notes" status
+
+### **Upgrade Endpoint Security**
+
+#### **Admin-Only Access Control**
+```javascript
+// Multiple security layers:
+router.post('/:slug/upgrade', requireAdmin, async (req, res) => {
+  // 1. JWT Authentication (authenticateToken middleware)
+  // 2. Admin Role Validation (requireAdmin middleware)
+  // 3. Tenant Ownership Verification
+  // 4. Plan Status Check
+});
+```
+
+#### **Security Layers**
+1. **JWT Authentication**: Valid token required
+2. **Admin Role Check**: Only `role: 'admin'` users allowed
+3. **Tenant Validation**: Admin can only upgrade their own tenant
+4. **Plan Status**: Prevents duplicate upgrades
+5. **Database Transaction**: Atomic plan update
+
+#### **Error Handling**
+- **401 Unauthorized**: No valid JWT token
+- **403 Forbidden**: Non-admin users attempting upgrade
+- **404 Not Found**: Invalid tenant or access denied
+- **400 Bad Request**: Already on Pro plan
+
+### **Frontend Integration**
+
+#### **Dynamic UI Based on Role**
+```javascript
+// Admin users see upgrade button
+${this.currentUser.role === 'admin' ? `
+    <button onclick="app.upgradeTenant()">Upgrade Now</button>
+` : `
+    <p>Contact your admin to upgrade the plan</p>
+`}
+```
+
+#### **Plan Status Display**
+- **Free Plan**: Shows "FREE" badge and "X/3 notes used"
+- **Pro Plan**: Shows "PRO" badge and "Unlimited notes"
+- **Upgrade Prompt**: Appears when 3-note limit reached
+- **Real-time Updates**: UI refreshes immediately after upgrade
+
+### **API Response Examples**
+
+#### **Successful Upgrade**
+```json
+{
+  "message": "Tenant upgraded to Pro plan successfully",
+  "tenant": {
+    "id": 1,
+    "slug": "acme",
+    "name": "Acme Corporation",
+    "plan": "pro"
+  },
+  "noteLimit": "unlimited",
+  "upgradeDate": "2024-01-15T10:30:00.000Z"
+}
+```
+
+#### **Note Limit Reached (Free Plan)**
+```json
+{
+  "error": "Note limit reached for free plan. Upgrade to Pro for unlimited notes.",
+  "upgradeRequired": true
+}
+```
+
+#### **Admin Access Denied**
+```json
+{
+  "error": "Insufficient permissions"
+}
+```
 
 ## 📊 Database Schema
 
@@ -288,6 +384,45 @@ The application includes a PowerShell test script (`test-api.ps1`) for comprehen
 powershell -ExecutionPolicy Bypass -File .\test-api.ps1
 ```
 
+### Free/Pro Plan Testing
+
+#### **Test Plan Limits**
+1. **Login as admin** (`admin@acme.test` / `password`)
+2. **Create 3 notes** - should work fine
+3. **Try to create 4th note** - should get 403 error with `upgradeRequired: true`
+4. **Check frontend** - should show upgrade prompt
+
+#### **Test Admin-Only Upgrade**
+1. **Login as member** (`user@acme.test` / `password`)
+2. **Try to upgrade** - should see "Contact your admin" message
+3. **Login as admin** (`admin@acme.test` / `password`)
+4. **Click "Upgrade Now"** - should successfully upgrade to Pro
+5. **Create more notes** - should work without limits
+
+#### **Test API Security**
+```bash
+# Test member access (should fail)
+curl -X POST https://your-backend.vercel.app/tenants/acme/upgrade \
+  -H "Authorization: Bearer MEMBER_TOKEN"
+# Response: {"error": "Insufficient permissions"}
+
+# Test admin access (should succeed)
+curl -X POST https://your-backend.vercel.app/tenants/acme/upgrade \
+  -H "Authorization: Bearer ADMIN_TOKEN"
+# Response: {"message": "Tenant upgraded to Pro plan successfully", ...}
+```
+
+#### **Test Plan Enforcement**
+```bash
+# Create note on free plan (should work for first 3)
+curl -X POST https://your-backend.vercel.app/notes \
+  -H "Authorization: Bearer TOKEN" \
+  -d '{"title":"Test Note","content":"Content"}'
+
+# After 3 notes, should get limit error
+# Response: {"error": "Note limit reached for free plan...", "upgradeRequired": true}
+```
+
 ## ✅ Evaluation Criteria Compliance
 
 This application fully meets all evaluation requirements:
@@ -314,10 +449,11 @@ This application fully meets all evaluation requirements:
 - **JWT-based authorization** with role validation
 
 ### **e. Free Plan Note Limit & Upgrade** ✅
-- **Free Plan**: Maximum 3 notes per tenant
-- **Pro Plan**: Unlimited notes
-- **Upgrade endpoint**: `POST /tenants/:slug/upgrade` (Admin only)
-- **Immediate effect**: Plan changes take effect instantly
+- **Free Plan**: Maximum 3 notes per tenant (enforced at API level)
+- **Pro Plan**: Unlimited notes (no restrictions)
+- **Upgrade endpoint**: `POST /tenants/:slug/upgrade` (Admin only with JWT authentication)
+- **Immediate effect**: Plan changes take effect instantly in database and UI
+- **Security**: Multiple layers of admin-only access control
 
 ### **f. Correct Functioning of All CRUD Endpoints** ✅
 - **POST /notes** - Create notes with tenant isolation
